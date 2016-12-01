@@ -280,6 +280,9 @@ public class DataWriter {
       // assigned topics while we try to recover offsets and rewind.
       recover(tp);
     }
+    if(hiveIntegration) {
+      syncWithHive();
+    }
   }
 
   public void close(Collection<TopicPartition> partitions) {
@@ -293,9 +296,12 @@ public class DataWriter {
     // valid. For now, we prefer the simpler solution that may result in a bit of wasted effort.
     for (TopicPartition tp: assignment) {
       try {
-        topicPartitionWriters.get(tp).close();
+        TopicPartitionWriter tpw = topicPartitionWriters.get(tp);
+        if(tpw != null) {
+          tpw.close();
+        }
       } catch (ConnectException e) {
-        log.error("Error closing writer for {}. Error: {]", tp, e.getMessage());
+        log.error("Error closing writer for {}. Error: {}", tp, e.getMessage());
       } finally {
         topicPartitionWriters.remove(tp);
       }
