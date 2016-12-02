@@ -585,36 +585,49 @@ public class TopicPartitionWriter {
     context.timeout(timeoutMs);
   }
 
+  private abstract class HiveCall implements Callable<Void> {
+    abstract void hiveCall() throws HiveMetaStoreException;
+
+    @Override
+    public Void call() throws Exception {
+      try {
+        hiveCall();
+      } catch (HiveMetaStoreException e) {
+        log.error("HiveMetaStoreException", e);
+      }
+      return null;
+    }
+  }
+
   private void createHiveTable() {
-    Future<Void> future = executorService.submit(new Callable<Void>() {
+    Future<Void> future = executorService.submit(new HiveCall() {
       @Override
-      public Void call() throws HiveMetaStoreException {
+      public void hiveCall() throws HiveMetaStoreException {
         hive.createTable(hiveDatabase, tp.topic(), currentSchema, partitioner);
-        return null;
       }
     });
     hiveUpdateFutures.add(future);
   }
 
   private void alterHiveSchema() {
-    Future<Void> future = executorService.submit(new Callable<Void>() {
+    Future<Void> future = executorService.submit(new HiveCall() {
       @Override
-      public Void call() throws HiveMetaStoreException {
+      public void hiveCall() throws HiveMetaStoreException {
         hive.alterSchema(hiveDatabase, tp.topic(), currentSchema);
-        return null;
       }
     });
     hiveUpdateFutures.add(future);
   }
 
   private void addHivePartition(final String location) {
-    Future<Void> future = executorService.submit(new Callable<Void>() {
+    Future<Void> future = executorService.submit(new HiveCall() {
       @Override
-      public Void call() throws Exception {
+      public void hiveCall() throws HiveMetaStoreException {
         hiveMetaStore.addPartition(hiveDatabase, tp.topic(), location);
-        return null;
       }
     });
     hiveUpdateFutures.add(future);
   }
+
+
 }
